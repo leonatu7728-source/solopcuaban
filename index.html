@@ -21,7 +21,7 @@
   #app{flex:1;width:100%;min-height:0;border:0;display:block;background:var(--bg)}
   #splash{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:var(--bg);transition:opacity .3s;z-index:2;padding:24px;text-align:center}
   #splash.hide{opacity:0;pointer-events:none}
-  #splash img{width:84px;height:84px;border-radius:20px;box-shadow:0 6px 20px rgba(46,125,91,.25)}
+  #splash img{width:84px;height:84px;border-radius:22%;box-shadow:0 6px 20px rgba(46,125,91,.25)}
   #splash h1{margin:0;font-size:22px}
   #splash p{margin:0;color:var(--mut);font-size:14px;max-width:300px;line-height:1.5}
   .dots{display:flex;gap:6px}.dots i{width:8px;height:8px;border-radius:50%;background:var(--g);opacity:.3;animation:b 1s infinite}
@@ -32,31 +32,13 @@
   .slow .btn{display:inline-block}
   #install{display:none;align-items:center;gap:12px;margin:8px 12px;padding:10px 14px;background:#fff;border:1px solid #E7E0D6;border-radius:14px;box-shadow:0 2px 10px rgba(0,0,0,.06);font-size:14px;line-height:1.4;flex:none;animation:dn .35s ease}
   #install.show{display:flex}
-  #install img{width:40px;height:40px;border-radius:10px}
+  #install img{width:40px;height:40px;border-radius:22%}
   #install div{flex:1}
   #install button{border:0;background:none;font:inherit;cursor:pointer}
   #install .go{background:var(--g);color:#fff;padding:8px 14px;border-radius:10px;font-weight:600}
   #install .x{color:var(--mut);font-size:20px;padding:0 4px}
 </style>
 </head>
-  <!-- ===== DÁN ĐOẠN NÀY VÀO FILE index.html TRÊN GITHUB (kho solopcuaban), NGAY TRƯỚC DÒNG </body> =====
-     Tác dụng: giữ đăng nhập Sổ Lớp qua các lần cập nhật, và cho nút "Cập nhật" trong app tải lại trang.
-     Trang GitHub chỉ cất "vé đăng nhập" trên máy người dùng và chỉ trao lại cho chính app Sổ Lớp. -->
-<script>
-(function(){
-  var K = 'solop_token';
-  function fromSoLop(o){ return /^https:\/\/[a-z0-9-]+\.googleusercontent\.com$/.test(o) || o === 'https://script.google.com'; }
-  window.addEventListener('message', function(e){
-    if (!fromSoLop(e.origin) || !e.data || typeof e.data !== 'object') return;
-    var d = e.data;
-    try {
-      if (d.solop === 'token') { if (d.info) localStorage.setItem(K, d.info); else localStorage.removeItem(K); }
-      else if (d.solop === 'getToken') { e.source.postMessage({ solopToken: localStorage.getItem(K) || '' }, e.origin); }
-      else if (d.solop === 'reload') { location.reload(); }
-    } catch (x) {}
-  });
-})();
-</script>
 <body>
 <div id="splash">
   <img src="icon-192.png" alt="">
@@ -79,9 +61,32 @@ document.getElementById('openBtn').href = target;
 frame.addEventListener('load', () => setTimeout(() => splash.classList.add('hide'), 600));
 setTimeout(() => { if (!splash.classList.contains('hide')) { splash.classList.add('slow'); document.getElementById('msg').textContent = navigator.onLine ? 'Mạng đang chậm. Vui lòng chờ thêm hoặc mở trong trình duyệt.' : 'Không có kết nối mạng. Sổ Lớp cần Internet để đồng bộ dữ liệu.'; } }, 12000);
 frame.src = target;
-// Sổ Lớp báo trạng thái từ bên trong khung
-window.addEventListener('message', e => { const d = e.data || {}; if (d.solop === 'ready') splash.classList.add('hide');
-  if (d.solop === 'fail') { splash.classList.remove('hide'); splash.classList.add('slow'); document.getElementById('msg').textContent = 'Trình duyệt đang chặn Sổ Lớp chạy trong ứng dụng. Bấm nút dưới để mở trực tiếp.'; } });
+
+/* ===== Nói chuyện với Sổ Lớp bên trong khung =====
+   1. Giữ đăng nhập qua các lần cập nhật (cất "vé đăng nhập" trên máy, chỉ trao lại cho chính Sổ Lớp).
+   2. Nút "Cập nhật" / tự cập nhật trong app → tải lại trang để dùng bản mới (app cài trên máy tính, điện thoại cũng chạy).
+   3. Báo đã mở xong / bị trình duyệt chặn. */
+const TOKEN_KEY = 'solop_token';
+function fromSoLop(o){ return /^https:\/\/[a-z0-9-]+\.googleusercontent\.com$/.test(o) || o === 'https://script.google.com'; }
+window.addEventListener('message', e => {
+  if (!fromSoLop(e.origin) || !e.data || typeof e.data !== 'object') return;
+  const d = e.data;
+  try {
+    if (d.solop === 'ready') splash.classList.add('hide');
+    else if (d.solop === 'fail') { splash.classList.remove('hide'); splash.classList.add('slow'); document.getElementById('msg').textContent = 'Trình duyệt đang chặn Sổ Lớp chạy trong ứng dụng. Bấm nút dưới để mở trực tiếp.'; }
+    else if (d.solop === 'token') { if (d.info) localStorage.setItem(TOKEN_KEY, d.info); else localStorage.removeItem(TOKEN_KEY); }
+    else if (d.solop === 'getToken') { e.source.postMessage({ solopToken: localStorage.getItem(TOKEN_KEY) || '' }, e.origin); }
+    else if (d.solop === 'reload') { location.reload(); }
+  } catch (x) {}
+});
+
+/* App cài trên máy: rời app hơn 30 phút rồi quay lại → tự mở lại bản mới nhất, dữ liệu mới nhất */
+let hiddenAt = 0;
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) { hiddenAt = Date.now(); return; }
+  if (hiddenAt && Date.now() - hiddenAt > 30 * 60000) location.reload();
+});
+window.addEventListener('pageshow', e => { if (e.persisted) location.reload(); });
 
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 
