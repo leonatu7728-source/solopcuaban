@@ -39,6 +39,24 @@
   #install .x{color:var(--mut);font-size:20px;padding:0 4px}
 </style>
 </head>
+  <!-- ===== DÁN ĐOẠN NÀY VÀO FILE index.html TRÊN GITHUB (kho solopcuaban), NGAY TRƯỚC DÒNG </body> =====
+     Tác dụng: giữ đăng nhập Sổ Lớp qua các lần cập nhật, và cho nút "Cập nhật" trong app tải lại trang.
+     Trang GitHub chỉ cất "vé đăng nhập" trên máy người dùng và chỉ trao lại cho chính app Sổ Lớp. -->
+<script>
+(function(){
+  var K = 'solop_token';
+  function fromSoLop(o){ return /^https:\/\/[a-z0-9-]+\.googleusercontent\.com$/.test(o) || o === 'https://script.google.com'; }
+  window.addEventListener('message', function(e){
+    if (!fromSoLop(e.origin) || !e.data || typeof e.data !== 'object') return;
+    var d = e.data;
+    try {
+      if (d.solop === 'token') { if (d.info) localStorage.setItem(K, d.info); else localStorage.removeItem(K); }
+      else if (d.solop === 'getToken') { e.source.postMessage({ solopToken: localStorage.getItem(K) || '' }, e.origin); }
+      else if (d.solop === 'reload') { location.reload(); }
+    } catch (x) {}
+  });
+})();
+</script>
 <body>
 <div id="splash">
   <img src="icon-192.png" alt="">
